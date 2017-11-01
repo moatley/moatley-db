@@ -160,7 +160,7 @@ class Mysql(object):
             queryFields = [(fieldNames[k], v) for k,v in kwargs.items() if k in fieldNames]
             stmt = "{stmt} WHERE {fields}".format(
                 stmt=stmt,
-                fields=','.join('`{name}`={value}'.format(
+                fields=' AND '.join('`{name}`={value}'.format(
                     name=field.name, 
                     value=to_db(field, value)) for (field, value) in queryFields))
 
