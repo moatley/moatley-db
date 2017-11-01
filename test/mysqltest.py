@@ -69,6 +69,8 @@ class MysqlTest(SeecrTestCase):
         allMocks = list(self.db.list(Mock, name="Jane Doe"))
         self.assertEqual(1, len(allMocks))
 
+        self.assertEqual([], list(self.db.list(Mock, name="Jane Doe", age=15)))
+
 
     def testCollectionAdd(self):
         class Page(DbObject):
