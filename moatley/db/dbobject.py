@@ -13,3 +13,12 @@ class DbObject(object):
         for field in fields:
             if field.name in kwargs:
                 setattr(self, field.name, kwargs[field.name])
+
+    def keys(self):
+        return [field.name for field in findFields(self.__class__)]
+
+    def __getitem__(self, name):
+        if name in self.keys():
+            return getattr(self, name) 
+        raise KeyError(name)
+
