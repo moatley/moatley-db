@@ -22,3 +22,11 @@ class DbObject(object):
             return getattr(self, name) 
         raise KeyError(name)
 
+    def __eq__(self, other): 
+        return type(self) == type(other) and dict(self) == dict(other)
+
+    def __repr__(self):
+        return "{}: {}".format(self.__class__.__name__, ', '.join('{k}={v}'.format(k=i[0], v=repr(i[1])) for i in sorted(dict(self).items())))
+
+    def __hash__(self):
+        return hash(repr(self))

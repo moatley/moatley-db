@@ -68,23 +68,19 @@ class JsonTest(SeecrTestCase):
 
         allMocks = list(self.db.list(Mock, name="Jane Doe"))
         self.assertEqual(1, len(allMocks))
-
         self.assertEqual([], list(self.db.list(Mock, name="Jane Doe", age=15)))
 
-
-    def xtestCollectionAdd(self):
+    def testCollectionAdd(self):
         class Page(DbObject):
             book=StrField("book")
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
             pages=CollectionField("pages", Page, "book")
-        self.db.drop(Page)
-        self.db.drop(Book)
+        self.db.registerClass(Book, Page)
 
-
-        self.db.define(Book)
-        self.db.define(Page)
+        self.db.define(Book, dropIfExists=True)
+        self.db.define(Page, dropIfExists=True)
 
         b = Book(title="My book")
 
@@ -109,13 +105,14 @@ class JsonTest(SeecrTestCase):
 
         self.assertEqual(3, len(list(self.db.list(Page))))
 
-    def xtestCollectionContained(self):
+    def testCollectionContained(self):
         class Page(DbObject):
             book=StrField("book")
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
             pages=CollectionField("pages", Page, "book")
+        self.db.registerClass(Book, Page)
         self.db.define(Page, dropIfExists=True)
         self.db.define(Book, dropIfExists=True)
 
