@@ -10,14 +10,6 @@ from datetime import datetime
 import sys
 from uuid import UUID
 
-def resolveQualifiedId(qualifiedId):
-    objType, identifier = qualifiedId.split(":", 1)
-    try:
-        objClass = eval(objType)
-    except:
-        raise
-    return getattr(sys.modules[__name__], objType), identifier
-
 db_transformations = {
     IDField : {
         "to": lambda v, *args: str(v),
@@ -54,9 +46,8 @@ class Json(DB):
                 itemsToDelete.extend(set(storedItems).difference(currentItems))
 
         with atomic_write(join(objectDir, str(anObject.ID))) as fp:
-            #for field in findFields(anObject.__class__):
-            #    print getattr(anObject, field.name)
             dump({field.name:db_transformations[type(field)]['to'](getattr(anObject, field.name), self) if type(field) in db_transformations else getattr(anObject, field.name) for field in findFields(anObject.__class__)}, fp)
+
         if len(itemsToDelete) > 0:
             for item in itemsToDelete:
                 self.delete(item.__class__, item.ID)
@@ -64,12 +55,10 @@ class Json(DB):
 
     def delete(self, objectType, identifier):
         if self.exists(objectType, identifier):
-            objectDir = join(self._root, objectType.__name__)
-            remove(join(objectDir, str(identifier)))
+            remove(join(self._root, objectType.__name__, str(identifier)))
 
     def exists(self, objectType, identifier):
-        objectDir = join(self._root, objectType.__name__)
-        return isfile(join(objectDir, str(identifier)))
+        return isfile(join(self._root, objectType.__name__, str(identifier)))
 
     def get(self, objectType, identifier):
         if type(objectType) is str:
@@ -87,10 +76,7 @@ class Json(DB):
         obj = objectType()
         for name in values:
             fieldType = type(fields[name])
-            if fieldType is CollectionField:
-                value = db_transformations[CollectionField]["from"](values[name], self)
-            else:
-                value = db_transformations[fieldType]["from"](values[name]) if fieldType in db_transformations else values[name]
+            value = db_transformations[fieldType]["from"](values[name], self) if fieldType in db_transformations else values[name]
             setattr(obj, name, value)
         return obj
 
@@ -111,6 +97,3 @@ class Json(DB):
         objectDir = join(self._root, objectType.__name__)
         if isdir(objectDir):
             rmtree(objectDir)
-
-    def display(self, objectType):
-        pass
