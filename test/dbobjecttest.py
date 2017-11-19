@@ -14,11 +14,20 @@ class DbObjectTest(SeecrTestCase):
         self.assertEquals("Moatley", m['name'])
         self.assertTrue(type(m['ID']) is UUID, m['ID'])
         self.assertRaises(KeyError, lambda: m['no such thing'])
+
+    def testSetItem(self):
+        class Mock(DbObject):
+            name = StrField("name")
+
+        m = Mock()
+        m['name'] = 'Johan'
+
+        self.assertEqual("Johan", m.name)
         try:
-            m['name'] = "Nope can't do"
-            self.fail("Shouldnt be able to set with item assignment")
-        except TypeError, e:
-            self.assertEqual("'Mock' object does not support item assignment", str(e))
+            m['ID'] = "Nope can't do"
+            self.fail("Cannot set ID")
+        except KeyError, e:
+            self.assertEqual("'Cannot set ID'", str(e))
 
     def testEquality(self):
         class Mock(DbObject):
