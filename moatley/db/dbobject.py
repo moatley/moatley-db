@@ -22,6 +22,13 @@ class DbObject(object):
             return getattr(self, name) 
         raise KeyError(name)
 
+    def __setitem__(self, name, value):
+        if name == "ID":
+            raise KeyError("Cannot set ID")
+
+        if name in self.keys():
+            setattr(self, name, value)
+
     def __eq__(self, other): 
         return type(self) == type(other) and dict(self) == dict(other)
 
