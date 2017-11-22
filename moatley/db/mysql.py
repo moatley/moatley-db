@@ -1,23 +1,28 @@
 from MySQLdb import Connect, OperationalError, escape_string
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, findFields
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields
 from .cursor import Cursor
 
 from datetime import datetime
 from uuid import UUID
 
+from db import DB
+
 db_transformations = {
     IntField: {
-        "to": lambda v: v,
-        "from": lambda v: v},
+        "to": lambda v, *args: v,
+        "from": lambda v, *args: v},
     StrField: {
-        "to": lambda v: escapeIfNeeded(v),
-        "from": lambda v: v},
+        "to": lambda v, *args: escapeIfNeeded(v),
+        "from": lambda v, *args: v},
     IDField: {
-        "to": lambda v: escapeIfNeeded(str(v)),
-        "from": lambda v: UUID(v)},
+        "to": lambda v, *args: escapeIfNeeded(str(v)),
+        "from": lambda v, *args: UUID(v)},
     DateField: {
-        "to": lambda v: escapeIfNeeded(str(v)),
-        "from": lambda v: v}
+        "to": lambda v, *args: escapeIfNeeded(str(v)),
+        "from": lambda v, *args: v},
+    ReferenceField: {
+        "to": lambda v, *args: escapeIfNeeded(v.qualifiedId),
+        "from": lambda v, db, *args: db.get(*v.split(":", 1))},
 }
 
 db_types = {
@@ -25,20 +30,22 @@ db_types = {
     StrField: "VARCHAR(255)",
     IDField: "VARCHAR(36)",
     DateField: "DATE",
+    ReferenceField: "VARCHAR(72)",
 }
 
 
 def escapeIfNeeded(value):
     return '"{}"'.format(escape_string(value)) if type(value) == str else value
 
-def to_db(field, value):
-    return db_transformations[field.__class__]['to'](value)
+def to_db(field, value, *args):
+    return db_transformations[field.__class__]['to'](value, *args)
 
-def from_db(field, value):
-    return db_transformations[field.__class__]['from'](value)
+def from_db(field, value, *args):
+    return db_transformations[field.__class__]['from'](value, *args)
 
-class Mysql(object):
+class Mysql(DB):
     def __init__(self, username, password, database, verbose=False):
+        super(Mysql, self).__init__()
         self._username = username
         self._password = password
         self._database = database
@@ -83,21 +90,21 @@ class Mysql(object):
         fields = [field for field in allFields if type(field) in db_types]
         collections = [field for field in allFields if type(field) == CollectionField]
         identifier = anObject.ID
+
+        fieldStatement = ','.join('`{name}`={value}'.format(
+                    name=field.name, 
+                    value=to_db(field, getattr(anObject, field.name), self)) for field in fields)
         
         if not self.exists(objectType, identifier):
             stmt = "INSERT INTO `{tableName}` SET {fields}".format(
                 tableName=objectType.__name__,
-                fields=','.join('`{name}`={value}'.format(
-                    name=field.name, 
-                    value=to_db(field, getattr(anObject, field.name))) for field in fields))
+                fields=fieldStatement)
         else:
             idFields = [field for field in fields if type(field) == IDField]
             fields = [field for field in fields if type(field) != IDField]
             stmt = "UPDATE `{tableName}` SET {fields} WHERE {idField}={identifier}".format(
                 tableName=objectType.__name__,
-                fields=','.join('`{name}`={value}'.format(
-                    name=field.name, 
-                    value=to_db(field, getattr(anObject, field.name))) for field in fields),
+                fields=fieldStatement,
                 idField=idFields[0].name,
                 identifier=to_db(idFields[0], identifier))
 
@@ -135,6 +142,12 @@ class Mysql(object):
             return result[0] > 0
 
     def get(self, objectType, identifier):
+        if type(objectType) is str:
+            errorText = "No class named '{}' registered".format(objectType)
+            objectType = self.findClass(objectType)
+            if objectType is None:
+                raise ValueError(errorText)
+
         allFields = findFields(objectType)
         fields = [field for field in allFields if type(field) in db_types]
         idFields = [field for field in fields if type(field) == IDField]
@@ -172,7 +185,7 @@ class Mysql(object):
         for result in self._sql(stmt):
             obj = objectType()
             for n, field in enumerate(fields):
-                setattr(obj, field.name, from_db(field, result[n]))
+                setattr(obj, field.name, from_db(field, result[n], self))
             for collection in collections:
                 values = list(self.list(collection.remoteObjectType, **{collection._reference: obj.qualifiedId}))
                 setattr(obj, collection.name, values)

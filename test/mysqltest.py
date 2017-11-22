@@ -13,10 +13,9 @@ class Mock(DbObject):
 class MysqlTest(SeecrTestCase):
     def setUp(self):
         super(MysqlTest, self).setUp()
-        self.db = Mysql(username="test", password="test", database="test")
+        self.db = Mysql(username="test", password="test", database="test", verbose=False)
         self.db.drop(Mock)
         self.db.define(Mock)
-
 
     def testCreatedTable(self):
         self.assertEqual([
@@ -130,4 +129,27 @@ class MysqlTest(SeecrTestCase):
         self.assertEqual([], b.pages)
         self.db.store(b)
         self.assertEqual(0, len(list(self.db.list(Page))))
+
+    def testReferenceField(self):
+        class Book(DbObject):
+            title=StrField("title")
+        class Page(DbObject):
+            book=ReferenceField("book")
+            number=IntField("number")
+
+        self.db.define(Page, dropIfExists=True)
+        self.db.registerClass(Page)
+        self.db.define(Book, dropIfExists=True)
+        self.db.registerClass(Book)
+
+        b = Book(title="The answer")
+        p = Page(number=1, book=b)
+
+        self.db.store(b)
+        self.db.store(p)
+
+        revisitedPage = self.db.get(Page, p.ID)
+        self.assertEqual(b, revisitedPage.book)
+
+
 
