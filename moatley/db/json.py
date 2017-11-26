@@ -1,4 +1,4 @@
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, findFields, ReferenceField
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, findFields, ReferenceField, DecimalField
 from .db import DB
 
 from os.path import isdir, join, abspath, isfile
@@ -23,6 +23,10 @@ db_transformations = {
     ReferenceField: {
         "to": lambda v, db: db.store(v),
         "from": lambda v, db: db.get(*v.split(":", 1))},
+    DecimalField: {
+        "to": lambda v, db: float(v),
+        "from": lambda v, db: v 
+        }
 }
 
 
