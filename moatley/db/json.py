@@ -1,4 +1,4 @@
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, findFields
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, findFields, ReferenceField
 from .db import DB
 
 from os.path import isdir, join, abspath, isfile
@@ -20,6 +20,9 @@ db_transformations = {
     CollectionField: {
         "to": lambda v, db: [db.store(o) for o in v],
         "from": lambda v, db: [db.get(objType, identifier) for objType, identifier in (i.split(":",1) for i in v)]},
+    ReferenceField: {
+        "to": lambda v, db: db.store(v),
+        "from": lambda v, db: db.get(*v.split(":", 1))},
 }
 
 
