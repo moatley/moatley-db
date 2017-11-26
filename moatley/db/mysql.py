@@ -1,5 +1,5 @@
 from MySQLdb import Connect, OperationalError, escape_string
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields, DecimalField
 from .cursor import Cursor
 
 from datetime import datetime
@@ -23,6 +23,10 @@ db_transformations = {
     ReferenceField: {
         "to": lambda v, *args: escapeIfNeeded(v.qualifiedId),
         "from": lambda v, db, *args: db.get(*v.split(":", 1))},
+    DecimalField: {
+        "to": lambda v, *args: float(v),
+        "from": lambda v, *args: v},
+
 }
 
 db_types = {
@@ -31,17 +35,23 @@ db_types = {
     IDField: "VARCHAR(36)",
     DateField: "DATE",
     ReferenceField: "VARCHAR(72)",
+    DecimalField: lambda field: "DECIMAL({},{})".format(field.fractionLength*2, field.fractionLength)
 }
 
+def getDbType(field):
+    r = db_types.get(field.__class__)
+    if callable(r):
+        r = r(field)
+    return r
 
 def escapeIfNeeded(value):
     return '"{}"'.format(escape_string(value)) if type(value) == str else value
 
 def to_db(field, value, *args):
-    return db_transformations[field.__class__]['to'](value, *args)
+    return db_transformations[field.__class__]['to'](value, *args) if field.__class__ in db_transformations else value
 
 def from_db(field, value, *args):
-    return db_transformations[field.__class__]['from'](value, *args)
+    return db_transformations[field.__class__]['from'](value, *args) if field.__class__ in db_transformations else value
 
 class Mysql(DB):
     def __init__(self, username, password, database, verbose=False):
@@ -75,7 +85,7 @@ class Mysql(DB):
             PRIMARY KEY({idFields}) 
         ) ENGINE=MyISAM""".format(
             tableName=objectType.__name__,
-            fields=','.join('`{name}` {sqlType}'.format(name=field.name, sqlType=db_types[field.__class__]) 
+            fields=','.join('`{name}` {sqlType}'.format(name=field.name, sqlType=getDbType(field)) 
                 for field in fields),
             idFields=','.join('`{}`'.format(field._name) 
                 for field in idFields))
@@ -196,13 +206,10 @@ class Mysql(DB):
             pass
 
     def display(self, objectType):
-        def findType(dbType):
-            types = [k for k,v in db_types.items() if v.lower() == dbType]
-            return types[0] if len(types) == 1 else None
+        fields = {f.name:f for f in findFields(objectType)}
         for i in self._sql("DESCRIBE `{}`".format(objectType.__name__)):
             name, dbType, mayBeNull, key, default, _ = i
-            yield name, findType(dbType)
-
+            yield name, fields[name].__class__
 
     def _sql(self, statement):
         if self._verbose:

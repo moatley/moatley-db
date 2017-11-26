@@ -1,9 +1,12 @@
 from seecr.test import SeecrTestCase, CallTrace
 
 from uuid import uuid4
+from decimal import Decimal
 from datetime import datetime
 from moatley.db import Json, DbObject
-from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, ReferenceField
+from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, ReferenceField, DecimalField
+
+
 
 class Mock(DbObject):
     name = StrField("name")
@@ -148,3 +151,16 @@ class JsonTest(SeecrTestCase):
 
         revisitedPage = self.db.get(Page, p.ID)
         self.assertEqual(b, revisitedPage.book)
+
+    def testDecimalField(self):
+        class Book(DbObject):
+            price=DecimalField("price")
+
+        self.db.define(Book, dropIfExists=True)
+        b = Book(price=Decimal(16.0/7))
+        self.db.store(b)
+
+        b1 = self.db.get(Book, b.ID)
+        self.assertEquals(b.price, b1.price)
+        self.assertEqual(Decimal, type(b1.price))
+

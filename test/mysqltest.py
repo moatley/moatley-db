@@ -2,13 +2,15 @@ from seecr.test import SeecrTestCase, CallTrace
 
 from uuid import uuid4
 from datetime import datetime
+from decimal import Decimal
 from moatley.db import Mysql, DbObject
-from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField
+from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, DecimalField
 
 class Mock(DbObject):
     name = StrField("name")
     age = IntField("age")
     dob = DateField("dob")
+    weight = DecimalField("weight")
 
 class MysqlTest(SeecrTestCase):
     def setUp(self):
@@ -18,11 +20,12 @@ class MysqlTest(SeecrTestCase):
         self.db.define(Mock)
 
     def testCreatedTable(self):
-        self.assertEqual([
+        self.assertEqual(set([
             ('dob', DateField), 
             ('age', IntField), 
             ('name', StrField), 
-            ('ID', IDField)], list(self.db.display(Mock)))
+            ('ID', IDField),
+            ('weight', DecimalField)]), set(self.db.display(Mock)))
 
     def testSetOnCreate(self):
         m = Mock(name="John", age=12)
@@ -43,7 +46,6 @@ class MysqlTest(SeecrTestCase):
         self.assertEqual(datetime.now().date(), n.dob)
         self.assertEqual(m.ID, n.ID)
 
-
     def testChanges(self):
         m = Mock(name="John Doe")
         self.db.store(m)
@@ -54,7 +56,6 @@ class MysqlTest(SeecrTestCase):
         self.db.store(m)
         n = self.db.get(Mock, m.ID)
         self.assertEqual("Jane Smith", n.name)
-
 
     def testList(self):
         m1 = Mock(name="John Smith")
@@ -151,5 +152,14 @@ class MysqlTest(SeecrTestCase):
         revisitedPage = self.db.get(Page, p.ID)
         self.assertEqual(b, revisitedPage.book)
 
+    def testDecimalField(self):
+        class Book(DbObject):
+            price=DecimalField("price")
 
+        self.db.define(Book, dropIfExists=True)
+        b = Book(price=16.0/7)
+        self.db.store(b)
 
+        b1 = self.db.get(Book, b.ID)
+        self.assertEquals(b.price, b1.price)
+        self.assertEqual(Decimal, type(b1.price))
