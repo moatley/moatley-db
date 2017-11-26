@@ -3,7 +3,7 @@ from seecr.test import SeecrTestCase, CallTrace
 from uuid import uuid4
 from datetime import datetime
 from moatley.db import Json, DbObject
-from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField
+from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, ReferenceField
 
 class Mock(DbObject):
     name = StrField("name")
@@ -128,3 +128,23 @@ class JsonTest(SeecrTestCase):
         self.db.store(b)
         self.assertEqual(0, len(list(self.db.list(Page))))
 
+    def testReferenceField(self):
+        class Book(DbObject):
+            title=StrField("title")
+        class Page(DbObject):
+            book=ReferenceField("book")
+            number=IntField("number")
+
+        self.db.define(Page, dropIfExists=True)
+        self.db.registerClass(Page)
+        self.db.define(Book, dropIfExists=True)
+        self.db.registerClass(Book)
+
+        b = Book(title="The answer")
+        p = Page(number=1, book=b)
+
+        self.db.store(b)
+        self.db.store(p)
+
+        revisitedPage = self.db.get(Page, p.ID)
+        self.assertEqual(b, revisitedPage.book)
