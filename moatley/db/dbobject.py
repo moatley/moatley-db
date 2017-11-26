@@ -3,6 +3,10 @@ from .fields import IDField, findFields
 class DbObject(object):
     ID=IDField("ID")
 
+    @classmethod
+    def fields(self):
+        return findFields(self)
+
     @property
     def qualifiedId(self):
         return "{}:{}".format(self.__class__.__name__, self.ID)
