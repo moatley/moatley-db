@@ -47,3 +47,9 @@ class DbObjectTest(SeecrTestCase):
         m1 = Mock(name="Moatley")
         self.assertEqual("Mock: ID=UUID('{}'), age=0, name='Moatley'".format(m1.ID), repr(m1))
 
+    def testFields(self):
+        class Mock(DbObject):
+            name = StrField("name")
+            age = IntField("age")
+        self.assertEqual(set(['age', 'name', 'ID']), set([f.name for f in Mock.fields()]))
+
