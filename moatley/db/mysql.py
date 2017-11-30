@@ -1,5 +1,5 @@
 from MySQLdb import Connect, OperationalError, escape_string
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields, DecimalField
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields, DecimalField, BooleanField
 from .cursor import Cursor
 
 from datetime import datetime
@@ -26,7 +26,9 @@ db_transformations = {
     DecimalField: {
         "to": lambda v, *args: float(v),
         "from": lambda v, *args: v},
-
+    BooleanField: {
+        "to": lambda v, *args: int(v),
+        "from": lambda v, *args: bool(v)}
 }
 
 db_types = {
@@ -35,7 +37,9 @@ db_types = {
     IDField: "VARCHAR(36)",
     DateField: "DATE",
     ReferenceField: "VARCHAR(72)",
-    DecimalField: lambda field: "DECIMAL({},{})".format(field.fractionLength*2, field.fractionLength)
+    DecimalField: lambda field: "DECIMAL({},{})".format(field.fractionLength*2, field.fractionLength),
+    BooleanField: "BOOL",
+
 }
 
 def getDbType(field):

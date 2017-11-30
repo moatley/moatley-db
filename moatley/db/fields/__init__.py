@@ -7,6 +7,7 @@ from datefield import DateField
 from referencefield import ReferenceField
 from collectionfield import CollectionField
 from decimalfield import DecimalField
+from booleanfield import BooleanField
 
 def findFields(oType):
     def _findFields(oType, results):
