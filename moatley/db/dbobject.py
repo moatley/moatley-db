@@ -7,6 +7,14 @@ class DbObject(object):
     def fields(self):
         return findFields(self)
 
+    @classmethod
+    def fromWeb(self, **kwargs):
+        values = {}
+        for field in findFields(self):
+            if field.name in kwargs:
+                values[field.name] = field.fromWeb(kwargs[field.name])
+        return self(**values)
+
     @property
     def qualifiedId(self):
         return "{}:{}".format(self.__class__.__name__, self.ID)

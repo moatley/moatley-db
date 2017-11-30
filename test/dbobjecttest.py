@@ -1,9 +1,11 @@
 from seecr.test import SeecrTestCase
 
 from moatley.db import DbObject
-from moatley.db.fields import StrField, IntField
+from moatley.db.fields import StrField, IntField, DecimalField, BooleanField, DateField
 
 from uuid import UUID
+from decimal import Decimal
+from datetime import datetime
 
 class DbObjectTest(SeecrTestCase):
     def testAccessAsDictionary(self):
@@ -53,3 +55,19 @@ class DbObjectTest(SeecrTestCase):
             age = IntField("age")
         self.assertEqual(set(['age', 'name', 'ID']), set([f.name for f in Mock.fields()]))
 
+    def testFromWeb(self):
+        class Mock(DbObject):
+            name=StrField("name")
+            number=IntField("number")
+            dec=DecimalField("dec")
+            b1 = BooleanField("b1")
+            b2 = BooleanField("b2")
+            d1 = DateField("d1")
+
+        m = Mock.fromWeb(name="name", number="10", dec="2.975", b1="1", b2="True", d1="2017-11-30")
+        self.assertEqual("name", m.name)
+        self.assertEqual(10, m.number)
+        self.assertEqual(Decimal(2.975), m.dec)
+        self.assertEqual(True, m.b1)
+        self.assertEqual(True, m.b2)
+        self.assertEqual(datetime.strptime("2017-11-30", "%Y-%m-%d").date(), m.d1)
