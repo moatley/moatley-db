@@ -12,3 +12,6 @@ class DecimalField(Field):
 
     def __set__(self, owner, value):
         super(DecimalField, self).__set__(owner, Decimal(round(value, self._fractionLength)))
+
+    def fromWeb(self, value):
+        return Decimal(value)
