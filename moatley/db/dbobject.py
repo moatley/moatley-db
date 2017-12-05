@@ -23,8 +23,8 @@ class DbObject(object):
         self._values = {}
         fields = findFields(self.__class__)
         for field in fields:
-            if field.name in kwargs:
-                setattr(self, field.name, kwargs[field.name])
+            value = kwargs[field.name] if field.name in kwargs else field._defaultValue(self, self.__class__)
+            setattr(self, field.name, value)
 
     def keys(self):
         return [field.name for field in findFields(self.__class__)]
@@ -49,3 +49,6 @@ class DbObject(object):
 
     def __hash__(self):
         return hash(repr(self))
+
+    def toWeb(self):
+        return {field.name:field.toWeb(getattr(self, field.name)) for field in findFields(self.__class__)}
