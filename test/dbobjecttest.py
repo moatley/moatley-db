@@ -1,7 +1,7 @@
 from seecr.test import SeecrTestCase
 
 from moatley.db import DbObject
-from moatley.db.fields import StrField, IntField, DecimalField, BooleanField, DateField
+from moatley.db.fields import StrField, IntField, DecimalField, BooleanField, DateField, ReferenceField
 
 from uuid import UUID
 from decimal import Decimal
@@ -71,3 +71,22 @@ class DbObjectTest(SeecrTestCase):
         self.assertEqual(True, m.b1)
         self.assertEqual(True, m.b2)
         self.assertEqual(datetime.strptime("2017-11-30", "%Y-%m-%d").date(), m.d1)
+
+    def testToWeb(self):
+        class Mock(DbObject):
+            name=StrField("name")
+            number=IntField("number")
+            dec=DecimalField("dec")
+            b1 = BooleanField("b1")
+            b2 = BooleanField("b2")
+            d1 = DateField("d1")
+            ref1 = ReferenceField('ref1')
+            ref2 = ReferenceField('ref2')
+        class Ref(DbObject):
+            pass
+
+        r2 = Ref()
+        m = Mock(name="naam", number=3, dec=5.34, b1=True, b2=False, d1=datetime.strptime("2017-11-30", "%Y-%m-%d").date(), ref2=r2)
+
+        values = m.toWeb()
+        self.assertEquals(dict(ID=str(m.ID), name="naam", number="3", dec="5.34", b1="True", b2="False", d1="2017-11-30", ref1=None, ref2=r2.qualifiedId), values)

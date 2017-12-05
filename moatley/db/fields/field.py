@@ -18,3 +18,6 @@ class Field(object):
     def __set__(self, owner, value):
         owner._values[self._name] = value
 
+    def toWeb(self, value):
+        return str(value)
+
