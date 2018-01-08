@@ -17,4 +17,4 @@ class DecimalField(Field):
         return Decimal(value)
 
     def toWeb(self, value):
-        return '{{0:0.{fraction}f}}'.format(fraction=self._fractionLength).format(value).rstrip('0')
+        return '{{0:0.{fraction}f}}'.format(fraction=self._fractionLength).format(value)

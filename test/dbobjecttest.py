@@ -77,6 +77,7 @@ class DbObjectTest(SeecrTestCase):
             name=StrField("name")
             number=IntField("number")
             dec=DecimalField("dec")
+            dec2=DecimalField("dec2", fractionLength=2)
             b1 = BooleanField("b1")
             b2 = BooleanField("b2")
             d1 = DateField("d1")
@@ -86,7 +87,7 @@ class DbObjectTest(SeecrTestCase):
             pass
 
         r2 = Ref()
-        m = Mock(name="naam", number=3, dec=5.34, b1=True, b2=False, d1=datetime.strptime("2017-11-30", "%Y-%m-%d").date(), ref2=r2)
+        m = Mock(name="naam", number=3, dec=5.34, dec2=42, b1=True, b2=False, d1=datetime.strptime("2017-11-30", "%Y-%m-%d").date(), ref2=r2)
 
         values = m.toWeb()
-        self.assertEquals(dict(ID=str(m.ID), name="naam", number="3", dec="5.34", b1="True", b2="False", d1="2017-11-30", ref1=None, ref2=r2.qualifiedId), values)
+        self.assertEquals(dict(ID=str(m.ID), name="naam", number="3", dec="5.3400000000", dec2="42.00", b1="True", b2="False", d1="2017-11-30", ref1=None, ref2=r2.qualifiedId), values)
