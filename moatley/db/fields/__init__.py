@@ -8,6 +8,7 @@ from referencefield import ReferenceField
 from collectionfield import CollectionField
 from decimalfield import DecimalField
 from booleanfield import BooleanField
+from textfield import TextField
 
 def findFields(oType):
     def _findFields(oType, results):

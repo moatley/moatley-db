@@ -4,13 +4,15 @@ from uuid import uuid4
 from decimal import Decimal
 from datetime import datetime
 from moatley.db import Json, DbObject
-from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, ReferenceField, DecimalField, BooleanField
+from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, ReferenceField, DecimalField, BooleanField, TextField
 
 
 class Mock(DbObject):
     name = StrField("name")
     age = IntField("age")
     dob = DateField("dob")
+    weight = DecimalField("weight")
+    description = TextField("description")
 
 class JsonTest(SeecrTestCase):
     def setUp(self):
@@ -176,3 +178,13 @@ class JsonTest(SeecrTestCase):
 
         b2 = Book()
         self.assertFalse(b2.fiction)
+
+    def testTextField(self):
+        class Book(DbObject):
+            text=TextField("text")
+        self.db.define(Book, dropIfExists=True)
+        b = Book(text='\n'.join("Line {}".format(i) for i in range(10)))
+        self.db.store(b)
+        
+        b1 = self.db.get(Book, b.ID)
+        self.assertEqual('\n'.join("Line {}".format(i) for i in range(10)), b1.text)

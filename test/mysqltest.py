@@ -4,13 +4,14 @@ from uuid import uuid4
 from datetime import datetime
 from decimal import Decimal
 from moatley.db import Mysql, DbObject
-from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, DecimalField, BooleanField
+from moatley.db.fields import StrField, IntField, DateField, IDField, ReferenceField, CollectionField, DecimalField, BooleanField, TextField
 
 class Mock(DbObject):
     name = StrField("name")
     age = IntField("age")
     dob = DateField("dob")
     weight = DecimalField("weight")
+    description = TextField("description")
 
 class MysqlTest(SeecrTestCase):
     def setUp(self):
@@ -25,7 +26,8 @@ class MysqlTest(SeecrTestCase):
             ('age', IntField), 
             ('name', StrField), 
             ('ID', IDField),
-            ('weight', DecimalField)]), set(self.db.display(Mock)))
+            ('weight', DecimalField),
+            ('description', TextField)]), set(self.db.display(Mock)))
 
     def testSetOnCreate(self):
         m = Mock(name="John", age=12)
@@ -177,3 +179,13 @@ class MysqlTest(SeecrTestCase):
 
         b2 = Book()
         self.assertFalse(b2.fiction)
+
+    def testTextField(self):
+        class Book(DbObject):
+            text=TextField("text")
+        self.db.define(Book, dropIfExists=True)
+        b = Book(text='\n'.join("Line {}".format(i) for i in range(10)))
+        self.db.store(b)
+        
+        b1 = self.db.get(Book, b.ID)
+        self.assertEqual('\n'.join("Line {}".format(i) for i in range(10)), b1.text)

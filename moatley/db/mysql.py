@@ -1,5 +1,5 @@
 from MySQLdb import Connect, OperationalError, escape_string
-from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields, DecimalField, BooleanField
+from .fields import Field, IntField, StrField, DateField, IDField, CollectionField, ReferenceField, findFields, DecimalField, BooleanField, TextField
 from .cursor import Cursor
 
 from datetime import datetime
@@ -12,6 +12,9 @@ db_transformations = {
         "to": lambda v, *args: v,
         "from": lambda v, *args: v},
     StrField: {
+        "to": lambda v, *args: escapeIfNeeded(v),
+        "from": lambda v, *args: v},
+    TextField: {
         "to": lambda v, *args: escapeIfNeeded(v),
         "from": lambda v, *args: v},
     IDField: {
@@ -39,6 +42,7 @@ db_types = {
     ReferenceField: "VARCHAR(72)",
     DecimalField: lambda field: "DECIMAL({},{})".format(field.fractionLength*2, field.fractionLength),
     BooleanField: "BOOL",
+    TextField: "TEXT",
 
 }
 
