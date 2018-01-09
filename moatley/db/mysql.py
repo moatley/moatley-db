@@ -83,36 +83,39 @@ class Mysql(DB):
                 self.drop(objectType)
             else:
                 return
-        
+
         fields = [field for field in findFields(objectType) if type(field) in db_types]
-        idFields = [field for field in fields if type(field) == IDField]
+        idFields = [field for field in fields if type(field) is IDField]
 
         stmt = """
-        CREATE TABLE `{tableName}` ( 
-            {fields}, 
-            PRIMARY KEY({idFields}) 
-        ) ENGINE=MyISAM""".format(
+        CREATE TABLE `{tableName}` ({fields}, PRIMARY KEY({idFields})) ENGINE=MyISAM""".format(
             tableName=objectType.__name__,
-            fields=','.join('`{name}` {sqlType}'.format(name=field.name, sqlType=getDbType(field)) 
+            fields=','.join('`{name}` {sqlType}'.format(name=field.name, sqlType=getDbType(field))
                 for field in fields),
-            idFields=','.join('`{}`'.format(field._name) 
+            idFields=','.join('`{}`'.format(field._name)
                 for field in idFields))
 
         for result in self._sql(stmt):
             pass
 
+        for linkTable in self._linkTablesFor(objectType):
+            linkTable.define(self)
+
+    def _linkTablesFor(self, objectType):
+        return [LinkTable(objectType, field)
+            for field in findFields(objectType) if type(field) is CollectionField]
+
     def store(self, anObject):
         objectType = anObject.__class__
-        
+
         allFields = findFields(objectType)
         fields = [field for field in allFields if type(field) in db_types]
-        collections = [field for field in allFields if type(field) == CollectionField]
         identifier = anObject.ID
 
         fieldStatement = ','.join('`{name}`={value}'.format(
-                    name=field.name, 
-                    value=to_db(field, getattr(anObject, field.name), self)) for field in fields)
-        
+            name=field.name,
+            value=to_db(field, getattr(anObject, field.name), self)) for field in fields)
+
         if not self.exists(objectType, identifier):
             stmt = "INSERT INTO `{tableName}` SET {fields}".format(
                 tableName=objectType.__name__,
@@ -129,17 +132,16 @@ class Mysql(DB):
         for result in self._sql(stmt):
             pass
 
-        for collection in collections:
-            items = getattr(anObject, collection.name)
-            for item in items:
-                self.store(item)
-            storedItems = set([obj.ID for obj in self.list(collection.remoteObjectType, **{collection._reference: anObject.qualifiedId})])
-            itemIDs = set([item.ID for item in items])
-
-            for item in storedItems.difference(itemIDs):
-                self.delete(collection.remoteObjectType, item)
+        for linkTable in self._linkTablesFor(objectType):
+            linkTable.store(self, anObject)
 
     def delete(self, objectType, identifier):
+        if type(objectType) is str:
+            errorText = "No class named '{}' registered".format(objectType)
+            objectType = self.findClass(objectType)
+            if objectType is None:
+                raise ValueError(errorText)
+
         fields = findFields(objectType)
         idFields = [field for field in fields if type(field) == IDField]
         stmt = "DELETE FROM `{tableName}` WHERE {idField}={identifier}".format(
@@ -174,9 +176,8 @@ class Mysql(DB):
             tableName=objectType.__name__,
             idField=idFields[0].name,
             identifier=to_db(idFields[0], identifier))
-     
-        collectionFields = [field for field in allFields if type(field) == CollectionField]
-        for obj in self._loadFromSelect(stmt, objectType, fields, collectionFields):
+
+        for obj in self._loadFromSelect(stmt, objectType, fields):
             return obj
 
     def list(self, objectType, **kwargs):
@@ -192,26 +193,31 @@ class Mysql(DB):
             stmt = "{stmt} WHERE {fields}".format(
                 stmt=stmt,
                 fields=' AND '.join('`{name}`={value}'.format(
-                    name=field.name, 
+                    name=field.name,
                     value=to_db(field, value)) for (field, value) in queryFields))
 
-        collectionFields = [field for field in allFields if type(field) == CollectionField]
-        for obj in self._loadFromSelect(stmt, objectType, fields, collectionFields):
+        for obj in self._loadFromSelect(stmt, objectType, fields):
             yield obj
 
-    def _loadFromSelect(self, stmt, objectType, fields, collections):
+    def _loadFromSelect(self, stmt, objectType, fields):
         for result in self._sql(stmt):
             obj = objectType()
             for n, field in enumerate(fields):
                 setattr(obj, field.name, from_db(field, result[n], self))
-            for collection in collections:
-                values = list(self.list(collection.remoteObjectType, **{collection._reference: obj.qualifiedId}))
-                setattr(obj, collection.name, values)
+
+            for linkTable in self._linkTablesFor(objectType):
+                value = linkTable.load(self, obj)
+                setattr(obj, linkTable.fieldName, value)
+
             yield obj
 
     def drop(self, objectType):
-        for i in self._sql("DROP TABLE IF EXISTS `{}`".format(objectType.__name__)):
-            pass
+        def _dropTable(tableName):
+            for i in self._sql("DROP TABLE IF EXISTS `{}`".format(tableName)):
+                pass
+        _dropTable(objectType.__name__)
+        map(_dropTable, ['{}_{}'.format(objectType.__name__, field.name) 
+            for field in findFields(objectType) if type(field) is CollectionField])
 
     def display(self, objectType):
         fields = {f.name:f for f in findFields(objectType)}
@@ -228,3 +234,55 @@ class Mysql(DB):
                 yield cursor.fetchone()
 
 
+class LinkTable(object):
+    def __init__(self, objectType, field):
+        self._objectType = objectType
+        self._field = field
+        self._tableName = '{}_{}'.format(self._objectType.__name__, field.name)
+
+    @property
+    def fieldName(self):
+        return self._field.name
+
+    def define(self, db):
+        for result in db._sql("""
+            CREATE TABLE `{linkTable}` (
+                `owner` VARCHAR(128),
+                `item` VARCHAR(128),
+                PRIMARY KEY(`owner`, `item`)
+            ) ENGINE=MyISAM""".format(
+                linkTable=self._tableName)):
+            pass
+
+    def _storedItems(self, db, anObject):
+        return [result[0] for result in db._sql("SELECT `item` FROM `{linkTable}` where `owner` = '{ownerID}'".format(
+            linkTable=self._tableName, 
+            ownerID=anObject.qualifiedId))]
+
+    def store(self, db, anObject):
+        items = getattr(anObject, self._field.name)
+        map(db.store, items)
+
+        ownerQualifiedId = anObject.qualifiedId
+        qualifiedItemIds = set([item.qualifiedId for item in items])
+        storedQualifiedIds = set(self._storedItems(db, anObject))
+
+        itemsToAdd = qualifiedItemIds.difference(storedQualifiedIds)
+        itemsToRemove = storedQualifiedIds.difference(qualifiedItemIds)
+        for item in itemsToAdd:
+            for _ in db._sql("INSERT INTO `{linkTable}` SET `owner`='{ownerQualifiedId}', `item`='{itemQualifiedId}'".format(
+                linkTable=self._tableName, 
+                ownerQualifiedId=ownerQualifiedId, 
+                itemQualifiedId=item)):
+                pass
+
+        for item in itemsToRemove:
+            db.delete(*item.split(":", 1))
+            for _ in db._sql("DELETE FROM `{linkTable}` WHERE `owner`='{ownerQualifiedId}' AND `item`='{itemQualifiedId}'".format(
+                linkTable=self._tableName,
+                ownerQualifiedId=ownerQualifiedId, 
+                itemQualifiedId=item)):
+                pass
+
+    def load(self, db, anObject):
+        return [db.get(*item.split(":", 1)) for item in self._storedItems(db, anObject)]

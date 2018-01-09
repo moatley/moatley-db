@@ -39,7 +39,7 @@ class MysqlTest(SeecrTestCase):
         self.assertEqual("", m.name)
         self.assertEqual(0, m.age)
         self.assertEqual(datetime.now().date(), m.dob)
-        
+
         self.db.store(m)
 
         n = self.db.get(Mock, m.ID)
@@ -53,7 +53,7 @@ class MysqlTest(SeecrTestCase):
         self.db.store(m)
         n = self.db.get(Mock, m.ID)
         self.assertEqual("John Doe", n.name)
-        
+
         m.name = "Jane Smith"
         self.db.store(m)
         n = self.db.get(Mock, m.ID)
@@ -76,17 +76,15 @@ class MysqlTest(SeecrTestCase):
 
     def testCollectionAdd(self):
         class Page(DbObject):
-            book=StrField("book")
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
-            pages=CollectionField("pages", Page, "book")
-        self.db.drop(Page)
-        self.db.drop(Book)
+            pages=CollectionField("pages")
 
-
-        self.db.define(Book)
-        self.db.define(Page)
+        self.db.define(Book, dropIfExists=True)
+        self.db.registerClass(Book)
+        self.db.define(Page, dropIfExists=True)
+        self.db.registerClass(Page)
 
         b = Book(title="My book")
 
@@ -97,8 +95,6 @@ class MysqlTest(SeecrTestCase):
         b.pages.append(p2)
 
         self.assertEquals(2, len(b.pages))
-        self.assertEquals("Book:{}".format(b.ID), p1.book)
-        self.assertEquals("Book:{}".format(b.ID), p2.book)
 
         self.db.store(b)
 
@@ -113,13 +109,14 @@ class MysqlTest(SeecrTestCase):
 
     def testCollectionContained(self):
         class Page(DbObject):
-            book=StrField("book")
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
-            pages=CollectionField("pages", Page, "book")
+            pages=CollectionField("pages")
         self.db.define(Page, dropIfExists=True)
+        self.db.registerClass(Page)
         self.db.define(Book, dropIfExists=True)
+        self.db.registerClass(Book)
 
         b = Book(title="My book")
 
