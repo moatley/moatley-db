@@ -277,7 +277,8 @@ class LinkTable(object):
                 pass
 
         for item in itemsToRemove:
-            db.delete(*item.split(":", 1))
+            if self._field.isContained:
+                db.delete(*item.split(":", 1))
             for _ in db._sql("DELETE FROM `{linkTable}` WHERE `owner`='{ownerQualifiedId}' AND `item`='{itemQualifiedId}'".format(
                 linkTable=self._tableName,
                 ownerQualifiedId=ownerQualifiedId, 

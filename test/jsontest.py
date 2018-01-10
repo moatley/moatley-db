@@ -76,11 +76,10 @@ class JsonTest(SeecrTestCase):
 
     def testCollectionAdd(self):
         class Page(DbObject):
-            book=StrField("book")
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
-            pages=CollectionField("pages", Page, "book")
+            pages=CollectionField("pages")
         self.db.registerClass(Book, Page)
 
         self.db.define(Book, dropIfExists=True)
@@ -95,8 +94,6 @@ class JsonTest(SeecrTestCase):
         b.pages.append(p2)
 
         self.assertEquals(2, len(b.pages))
-        self.assertEquals("Book:{}".format(b.ID), p1.book)
-        self.assertEquals("Book:{}".format(b.ID), p2.book)
 
         self.db.store(b)
 
@@ -115,7 +112,7 @@ class JsonTest(SeecrTestCase):
             number=IntField("number")
         class Book(DbObject):
             title=StrField("title")
-            pages=CollectionField("pages", Page, "book")
+            pages=CollectionField("pages")
         self.db.registerClass(Book, Page)
         self.db.define(Page, dropIfExists=True)
         self.db.define(Book, dropIfExists=True)
@@ -132,6 +129,31 @@ class JsonTest(SeecrTestCase):
         self.db.store(b)
         self.assertEqual(0, len(list(self.db.list(Page))))
 
+    def testCollectionNotContained(self):
+        class Page(DbObject):
+            number=IntField("number")
+        class Book(DbObject):
+            title=StrField("title")
+            pages=CollectionField("pages", contained=False)
+        self.db.registerClass(Page, Book)
+        self.db.define(Page, dropIfExists=True)
+        self.db.define(Book, dropIfExists=True)
+
+        b = Book(title="My book")
+
+        p1 = Page(number=1)
+        self.db.store(p1)
+        self.assertEquals([p1], list(self.db.list(Page)))
+
+        b.pages.append(p1)
+        self.db.store(b)
+        self.assertEqual(1, len(list(self.db.list(Page))))
+
+        b.pages.remove(p1)
+        self.assertEqual([], b.pages)
+        self.assertEquals([p1], list(self.db.list(Page)))
+        self.db.store(b)
+        self.assertEquals([p1], list(self.db.list(Page)))
     def testReferenceField(self):
         class Book(DbObject):
             title=StrField("title")

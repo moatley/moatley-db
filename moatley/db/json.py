@@ -50,7 +50,8 @@ class Json(DB):
             for collectionField in collectionFields:
                 storedItems = getattr(storedObject, collectionField.name)
                 currentItems = getattr(anObject, collectionField.name)
-                itemsToDelete.extend(set(storedItems).difference(currentItems))
+                if collectionField.isContained:
+                    itemsToDelete.extend(set(storedItems).difference(currentItems))
 
         with atomic_write(join(objectDir, str(anObject.ID))) as fp:
             dump({field.name:db_transformations[type(field)]['to'](getattr(anObject, field.name), self) if type(field) in db_transformations else getattr(anObject, field.name) for field in findFields(anObject.__class__)}, fp)

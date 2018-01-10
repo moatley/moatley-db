@@ -130,6 +130,33 @@ class MysqlTest(SeecrTestCase):
         self.db.store(b)
         self.assertEqual(0, len(list(self.db.list(Page))))
 
+    def testCollectionNotContained(self):
+        class Page(DbObject):
+            number=IntField("number")
+        class Book(DbObject):
+            title=StrField("title")
+            pages=CollectionField("pages", contained=False)
+        self.db.registerClass(Page, Book)
+        self.db.define(Page, dropIfExists=True)
+        self.db.define(Book, dropIfExists=True)
+
+        b = Book(title="My book")
+
+        p1 = Page(number=1)
+        self.db.store(p1)
+        self.assertEquals([p1], list(self.db.list(Page)))
+
+        b.pages.append(p1)
+        self.db.store(b)
+        self.assertEqual(1, len(list(self.db.list(Page))))
+
+        b.pages.remove(p1)
+        self.assertEqual([], b.pages)
+        self.assertEquals([p1], list(self.db.list(Page)))
+        self.db.store(b)
+        self.assertEquals([p1], list(self.db.list(Page)))
+
+
     def testReferenceField(self):
         class Book(DbObject):
             title=StrField("title")
