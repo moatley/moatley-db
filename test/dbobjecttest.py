@@ -91,3 +91,17 @@ class DbObjectTest(SeecrTestCase):
 
         values = m.toWeb()
         self.assertEquals(dict(ID=str(m.ID), name="naam", number="3", dec="5.3400000000", dec2="42.00", b1="True", b2="False", d1="2017-11-30", ref1=None, ref2=r2.qualifiedId), values)
+
+    def testToWebCustomRender(self):
+        class Mock(DbObject):
+            name=StrField("name")
+            ref=ReferenceField("ref")
+        class Ref(DbObject):
+            def asString(this):
+                return 'This is it!'
+
+        m = Mock(name="naampje", ref=Ref())
+        self.assertEqual({
+            'ID': str(m.ID),
+            'name': 'Naampje',
+            'ref': 'This is it!'}, m.toWeb(ref=lambda v: v.asString(), name=str.title))

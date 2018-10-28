@@ -7,4 +7,3 @@ class ReferenceField(Field):
 
     def toWeb(self, value):
         return None if value is None else value.qualifiedId
-        

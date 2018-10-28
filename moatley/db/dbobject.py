@@ -50,5 +50,5 @@ class DbObject(object):
     def __hash__(self):
         return hash(repr(self))
 
-    def toWeb(self):
-        return {field.name:field.toWeb(getattr(self, field.name)) for field in findFields(self.__class__)}
+    def toWeb(self, **kwargs):
+        return {field.name:field.toWeb(getattr(self, field.name)) if field.name not in kwargs else kwargs[field.name](getattr(self,field.name)) for field in findFields(self.__class__)}
