@@ -24,8 +24,8 @@ db_transformations = {
         "to": lambda v, *args: escapeIfNeeded(str(v)),
         "from": lambda v, *args: v},
     ReferenceField: {
-        "to": lambda v, *args: escapeIfNeeded(v.qualifiedId),
-        "from": lambda v, db, *args: db.get(*v.split(":", 1))},
+        "to": lambda v, *args: escapeIfNeeded(v and v.qualifiedId or ''),
+        "from": lambda v, db, *args: v and db.get(*v.split(":", 1)) or None},
     DecimalField: {
         "to": lambda v, *args: float(v),
         "from": lambda v, *args: v},

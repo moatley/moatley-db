@@ -213,3 +213,17 @@ class MysqlTest(SeecrTestCase):
         
         b1 = self.db.get(Book, b.ID)
         self.assertEqual('\n'.join("Line {}".format(i) for i in range(10)), b1.text)
+
+    def testReferenceField(self):
+        class Book(DbObject):
+            author=ReferenceField("author")
+        self.db.define(Book, dropIfExists=True)
+        b = Book()
+        self.assertEqual(None, b.author)
+        self.db.store(b)
+
+        b1 = self.db.get(Book, b.ID)
+        self.assertEqual(None, b1.author)
+
+
+
