@@ -7,31 +7,39 @@ from uuid import UUID
 
 from db import DB
 
+def reference_from_db(value, db, cache):
+    if not value:
+        return None
+
+    if value not in cache:
+        cache[value] = db.get(*value.split(":",1), cache=cache)
+    return cache[value]
+
 db_transformations = {
     IntField: {
         "to": lambda v, *args: v,
-        "from": lambda v, *args: v},
+        "from": lambda v, *args, **kwargs: v},
     StrField: {
         "to": lambda v, *args: escapeIfNeeded(v),
-        "from": lambda v, *args: v},
+        "from": lambda v, *args, **kwargs: v},
     TextField: {
         "to": lambda v, *args: escapeIfNeeded(v),
-        "from": lambda v, *args: v},
+        "from": lambda v, *args, **kwargs: v},
     IDField: {
         "to": lambda v, *args: escapeIfNeeded(str(v)),
-        "from": lambda v, *args: UUID(v)},
+        "from": lambda v, *args, **kwargs: UUID(v)},
     DateField: {
         "to": lambda v, *args: escapeIfNeeded(str(v)),
-        "from": lambda v, *args: v},
+        "from": lambda v, *args, **kwargs: v},
     ReferenceField: {
         "to": lambda v, *args: escapeIfNeeded(v and v.qualifiedId or ''),
-        "from": lambda v, db, *args: v and db.get(*v.split(":", 1)) or None},
+        "from": reference_from_db},
     DecimalField: {
         "to": lambda v, *args: float(v),
-        "from": lambda v, *args: v},
+        "from": lambda v, *args, **kwargs: v},
     BooleanField: {
         "to": lambda v, *args: int(v),
-        "from": lambda v, *args: bool(v)}
+        "from": lambda v, *args, **kwargs: bool(v)}
 }
 
 db_types = {
@@ -58,8 +66,9 @@ def escapeIfNeeded(value):
 def to_db(field, value, *args):
     return db_transformations[field.__class__]['to'](value, *args) if field.__class__ in db_transformations else value
 
-def from_db(field, value, *args):
-    return db_transformations[field.__class__]['from'](value, *args) if field.__class__ in db_transformations else value
+def from_db(field, value, *args, **kwargs):
+    return db_transformations[field.__class__]['from'](value, *args, **kwargs) if field.__class__ in db_transformations else value
+
 
 class Mysql(DB):
     def __init__(self, username, password, database, verbose=False):
@@ -161,7 +170,7 @@ class Mysql(DB):
         for result in self._sql(stmt):
             return result[0] > 0
 
-    def get(self, objectType, identifier):
+    def get(self, objectType, identifier, cache=None):
         if type(objectType) is str:
             errorText = "No class named '{}' registered".format(objectType)
             objectType = self.findClass(objectType)
@@ -177,7 +186,7 @@ class Mysql(DB):
             idField=idFields[0].name,
             identifier=to_db(idFields[0], identifier))
 
-        for obj in self._loadFromSelect(stmt, objectType, fields):
+        for obj in self._loadFromSelect(stmt, objectType, fields, cache or {}):
             return obj
 
     def list(self, objectType, **kwargs):
@@ -196,14 +205,15 @@ class Mysql(DB):
                     name=field.name,
                     value=to_db(field, value)) for (field, value) in queryFields))
 
-        for obj in self._loadFromSelect(stmt, objectType, fields):
+        cache = {}
+        for obj in self._loadFromSelect(stmt, objectType, fields, cache):
             yield obj
 
-    def _loadFromSelect(self, stmt, objectType, fields):
+    def _loadFromSelect(self, stmt, objectType, fields, cache):
         for result in self._sql(stmt):
             obj = objectType()
             for n, field in enumerate(fields):
-                setattr(obj, field.name, from_db(field, result[n], self))
+                setattr(obj, field.name, from_db(field, result[n], self, cache=cache))
 
             for linkTable in self._linkTablesFor(objectType):
                 value = linkTable.load(self, obj)
@@ -216,7 +226,7 @@ class Mysql(DB):
             for i in self._sql("DROP TABLE IF EXISTS `{}`".format(tableName)):
                 pass
         _dropTable(objectType.__name__)
-        map(_dropTable, ['{}_{}'.format(objectType.__name__, field.name) 
+        map(_dropTable, ['{}_{}'.format(objectType.__name__, field.name)
             for field in findFields(objectType) if type(field) is CollectionField])
 
     def display(self, objectType):
@@ -256,7 +266,7 @@ class LinkTable(object):
 
     def _storedItems(self, db, anObject):
         return [result[0] for result in db._sql("SELECT `item` FROM `{linkTable}` where `owner` = '{ownerID}'".format(
-            linkTable=self._tableName, 
+            linkTable=self._tableName,
             ownerID=anObject.qualifiedId))]
 
     def store(self, db, anObject):
@@ -271,8 +281,8 @@ class LinkTable(object):
         itemsToRemove = storedQualifiedIds.difference(qualifiedItemIds)
         for item in itemsToAdd:
             for _ in db._sql("INSERT INTO `{linkTable}` SET `owner`='{ownerQualifiedId}', `item`='{itemQualifiedId}'".format(
-                linkTable=self._tableName, 
-                ownerQualifiedId=ownerQualifiedId, 
+                linkTable=self._tableName,
+                ownerQualifiedId=ownerQualifiedId,
                 itemQualifiedId=item)):
                 pass
 
@@ -281,7 +291,7 @@ class LinkTable(object):
                 db.delete(*item.split(":", 1))
             for _ in db._sql("DELETE FROM `{linkTable}` WHERE `owner`='{ownerQualifiedId}' AND `item`='{itemQualifiedId}'".format(
                 linkTable=self._tableName,
-                ownerQualifiedId=ownerQualifiedId, 
+                ownerQualifiedId=ownerQualifiedId,
                 itemQualifiedId=item)):
                 pass
 
