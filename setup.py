@@ -8,7 +8,7 @@ version = '$Version: trunk$'[9:-1].strip()
 setup(
     name="moatley-db",
     packages=[
-        'moatley',
+        'moatley',          #DO_NOT_DISTRIBUTE
         'moatley.db',
         'moatley.db.fields',
         ],
